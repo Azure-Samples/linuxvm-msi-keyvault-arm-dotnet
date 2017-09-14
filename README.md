@@ -1,57 +1,173 @@
-# Project Name
+## Background
+For Service-to-Azure-Service authentication, where the Azure service supports Azure AD based authentication, the approach so far involved creating an Azure AD application and associated credential, and using that credential to get a token. 
 
-(short, 1-3 sentenced, description of the project)
+While this approach works well, there are two shortcomings:
+1. The Azure AD application credentials are typically hard coded in the source code. Developers tend to push the code to source repositories as-is, which leads to credentials in source.
+2. The Azure AD application credentials expire, and so need to be renewed, else can lead to application downtime.
 
-## Features
+With [Managed Service Identity (MSI)](https://docs.microsoft.com/en-us/azure/active-directory/msi-overview), both these problems are solved. This sample shows how a .NET Core application deployed on an Azure Linux VM can authenticate to Azure Key Vault and Azure Resource Manager without the need to explicitly create an Azure AD application or manage its credentials. 
 
-This project framework provides the following features:
+>Here's another sample that shows how to fetch a secret from Azure Key Vault at run-time from an App Service with a Managed Service Identity (MSI) - [https://github.com/Azure-Samples/app-service-msi-keyvault-dotnet/](https://github.com/Azure-Samples/app-service-msi-keyvault-dotnet/)
 
-* Feature 1
-* Feature 2
-* ...
+## Prerequisites
+To run and deploy this sample, you need the following:
+1. Azure subscription to create an Azure VM with MSI. 
+2. [.NET Core 1.1](https://www.microsoft.com/net/download/core#/runtime) since this application targets .NET Core. 
+3. [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest) to run the application on your local development machine.
 
-## Getting Started
+## Step 1: Create an Azure VM with a Managed Service Identity (MSI) 
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure-Samples%2Fwindowsvm-msi-arm-dotnet%2Fmaster%2Fazuredeploy.json" target="_blank">
+    <img src="http://azuredeploy.net/deploybutton.png"/>
+</a>
 
-### Prerequisites
+Use the "Deploy to Azure" button to deploy an ARM template to create the following resources:
+1. Azure Linux VM with MSI.
+2. Key Vault with a secret, and an access policy that grants the Azure VM access to **Get Secrets**.
+3. Role assignment that grants the Azure VM reader access to the subscription. 
 
-(ideally very short, if any)
+Review the resources created using the Azure portal. You should see the Azure VM and a Key Vault. View the access policies of the Key Vault to see that the Azure VM has access to it. 
 
-- OS
-- Library version
-- ...
+## Step 2: Grant yourself data plane access to the Key Vault
+Using the Azure Portal, go to the Key Vault's access policies, and grant yourself **Secret Management** access to the Key Vault. This will allow you to run the application on your local development machine. 
 
-### Installation
+1.	Click your Key Vault name in “Search Resources dialog box” in Azure Portal.
+2.	Select "Overview", and click on Access policies
+3.	Click on "Add New", select "Secret Management" from the dropdown for "Configure from template"
+4.	Click on "Select Principal", add your account 
+5.	Save the Access Policies
 
-(ideally very short)
+## Step 3: Clone the repo 
+Clone the repo to your development machine. 
 
-- npm install [package name]
-- mvn install
-- ...
+The relevant Nuget packages are:
+1. Microsoft.Azure.Services.AppAuthentication (preview) - makes it easy to fetch access tokens for service to Azure service authentication scenarios. 
+2. Microsoft.Azure.Management.ResourceManager - contains methods for interacting with Azure Resource Manager. 
+3. Microsoft.Azure.KeyVault - contains methods for interacting with Key Vault. 
 
-### Quickstart
-(Add steps to get up and running quickly)
+The relevant code is in Program.cs file. The AzureServiceTokenProvider class (which is part of Microsoft.Azure.Services.AppAuthentication) tries the following methods to get an access token, to call Azure services:-
+1. Managed Service Identity (MSI) - for scenarios where the code is deployed to Azure, and the Azure resource supports MSI. 
+2. [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest) (for local development) - Azure CLI version 2.0.12 and above supports the **get-access-token** option. AzureServiceTokenProvider uses this option to get an access token for local development. 
 
-1. git clone [repository clone url]
-2. cd [respository name]
-3. ...
+> For applications targeting .NET Framework, Active Directory Integrated Authentication is tried possible for local development. 
 
+```csharp    
+private static async Task GetSecretFromKeyVault(AzureServiceTokenProvider azureServiceTokenProvider)
+{
+    KeyVaultClient keyVaultClient =
+        new KeyVaultClient(
+            new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
 
-## Demo
+    Console.WriteLine("Please enter the key vault name");
 
-A demo app is included to show how to use the project.
+    var keyvaultName = Console.ReadLine();
 
-To run the demo, follow these steps:
+    try
+    {
+        var secret = await keyVaultClient
+            .GetSecretAsync($"https://{keyvaultName}.vault.azure.net/secrets/secret")
+            .ConfigureAwait(false);
 
-(Add steps to start up the demo)
+        Console.WriteLine($"Secret: {secret.Value}");
 
-1.
-2.
-3.
+    }
+    catch (Exception exp)
+    {
+        Console.WriteLine($"Something went wrong: {exp.Message}");
+    }
+    
+}
 
-## Resources
+private static async Task GetResourceGroups(AzureServiceTokenProvider azureServiceTokenProvider)
+{
+    Console.WriteLine($"{Environment.NewLine}{Environment.NewLine}Please enter the subscription Id");
 
-(Any additional resources or related projects)
+    var subscriptionId = Console.ReadLine();
 
-- Link to supporting information
-- Link to similar sample
-- ...
+    try
+    {
+        var serviceCreds = new TokenCredentials(await azureServiceTokenProvider.GetAccessTokenAsync("https://management.azure.com/").ConfigureAwait(false));
+
+        var resourceManagementClient =
+            new ResourceManagementClient(serviceCreds) {SubscriptionId = subscriptionId};
+
+        var resourceGroups = await resourceManagementClient.ResourceGroups.ListAsync();
+
+        foreach (var resourceGroup in resourceGroups)
+        {
+            Console.WriteLine($"Resource group {resourceGroup.Name}");
+        }
+
+    }
+    catch (Exception exp)
+    {
+        Console.WriteLine($"Something went wrong: {exp.Message}");
+    }
+    
+}
+```
+
+## Step 4: Run the application on your local development machine
+Open a command prompt and navigate to the folder with the project file. Run **dotnet restore**. Then run **dotnet run**. 
+
+Since the code is running on your local development machine, AzureServiceTokenProvider will use the developer's security context to get a token to authenticate to Azure Services.
+This removes the need to create a service principal, and share it with the development team. It also prevents credentials from being checked in to source code. 
+AzureServiceTokenProvider will use **Azure CLI** to authenticate to Azure AD to get a token.  
+
+Azure CLI will work if the following conditions are met:
+ 1. You have [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest) installed. Version 2.0.12 supports the get-access-token option used by AzureServiceTokenProvider. If you have an earlier version, please upgrade. 
+ 2. You are logged into Azure CLI. You can login using **az login** command.
+ 
+Since your developer account has access to the Key Vault and the subscription, you should see the secret that you created and the list of resource groups in the subscription. 
+
+>You can also use a service principal to run the application on your local development machine. See the section "Running the application using a service principal" later in the tutorial on how to do this. 
+
+## Step 6: Deploy the application to the Azure VM
+
+In the Azure Portal, browse to the Azure VM you created, and click on "Connect". 
+
+1. SSH into the Azure VM. 
+2. Install .NET Core 1.1
+3. Clone the repo using 
+   git-clone 
+4. Navigate to the folder with the project file.
+5. Run **dotnet restore**. Then run **dotnet run**. 
+
+It will run the same code that was run on the local development machine, but will use Managed Service Identity, instead of your developer context. 
+
+## Summary
+The .NET Core console application was successfully able to get a secret at runtime from Azure Key Vault and list resource groups using ARM using your developer account during development, and using MSI when deployed to Azure, without any code change between local development environment and Azure. 
+As a result, you did not have to explicitly handle a service principal credential to authenticate to Azure AD to get a token to call Azure Services. 
+You do not have to worry about renewing the service principal credential either, since MSI takes care of that.  
+
+## Troubleshooting
+
+### Common issues during local development:
+
+1. Azure CLI is not installed, or you are not logged in, or you do not have the latest version. 
+Run **az account get-access-token** to see if Azure CLI shows a token for you. If it says no such program found, please install Azure CLI 2.0. If you have installed it, you may be prompted to login. 
+
+2. AzureServiceTokenProvider cannot find the path for Azure CLI.
+AzureServiceTokenProvider finds Azure CLI at its default install locations. If it cannot find Azure CLI, please set environment variable **AzureCLIPath** to the Azure CLI installation folder. AzureServiceTokenProvider will add the environment variable to the Path environment variable.
+
+### Common issues across environments:
+
+1. Access denied (Forbidden)
+
+The principal used does not have access to the subscription or the Key Vault. 
+
+## Running the application using a service principal in local development environment
+
+>Note: It is recommended to use your developer context for local development, since you do not need to create or share a service principal for that. If that does not work for you, you can use a service principal, but do not check in the certificate or secret in source repos, and share them securely.
+
+To run the application using a service principal in the local development environment, follow these steps
+
+Service principal using a certificate:
+1. Create a service principal certificate. Follow steps [here](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-authenticate-service-principal) to create a service principal. 
+2. Set an environment variable named **AzureServicesAuthConnectionString** to **RunAs=App;AppId=AppId;TenantId=TenantId;CertificateThumbprint=Thumbprint;CertificateStoreLocation=CurrentUser**. 
+You need to replace AppId, TenantId, and Thumbprint with actual values from step #1.
+3. Run the application in your local development environment. No code change is required. AzureServiceTokenProvider will use this environment variable and use the certificate to authenticate to Azure AD. 
+
+Service principal using a password:
+1. Create a service principal with a password. Follow steps [here](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-authenticate-service-principal) to create a service principal and grant it permissions to the Key Vault. 
+2. Set an environment variable named **AzureServicesAuthConnectionString** to **RunAs=App;AppId=AppId;TenantId=TenantId;AppKey=Secret**. You need to replace AppId, TenantId, and Secret with actual values from step #1. 
+3. Run the application in your local development environment. No code change is required. AzureServiceTokenProvider will use this environment variable and use the service principal to authenticate to Azure AD. 
