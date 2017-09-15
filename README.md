@@ -12,7 +12,7 @@ With [Managed Service Identity (MSI)](https://docs.microsoft.com/en-us/azure/act
 ## Prerequisites
 To run and deploy this sample, you need the following:
 1. Azure subscription to create an Azure VM with MSI. 
-2. [.NET Core 1.1](https://github.com/dotnet/core/blob/master/release-notes/download-archives/1.1.2-download.md) since this application targets .NET Core. 
+2. [.NET Core 2.0](https://www.microsoft.com/net/download/core) since this application targets .NET Core 2.0. 
 3. [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest) to run the application on your local development machine.
 
 ## Step 1: Create an Azure VM with a Managed Service Identity (MSI) 
@@ -130,8 +130,8 @@ Since your developer account has access to the Key Vault and the subscription, y
 
 In the Azure Portal, browse to the Azure VM you created, and click on "Connect". 
 
-1. SSH into the Azure VM. 
-2. Install [.NET Core 1.1](https://github.com/dotnet/core/blob/master/release-notes/download-archives/1.1.2-download.md)
+1. SSH into the Azure VM, and run below commands from the command line. 
+2. Install [.NET Core 2.0](https://www.microsoft.com/net/core#linuxubuntu)
 3. Clone the repo using 
    **git clone https://github.com/Azure-Samples/linuxvm-msi-keyvault-arm-dotnet/**
 4. Navigate to the folder with the project file.
