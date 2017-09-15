@@ -12,18 +12,18 @@ With [Managed Service Identity (MSI)](https://docs.microsoft.com/en-us/azure/act
 ## Prerequisites
 To run and deploy this sample, you need the following:
 1. Azure subscription to create an Azure VM with MSI. 
-2. [.NET Core 1.1](https://www.microsoft.com/net/download/core#/runtime) since this application targets .NET Core. 
+2. [.NET Core 1.1](https://github.com/dotnet/core/blob/master/release-notes/download-archives/1.1.2-download.md) since this application targets .NET Core. 
 3. [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest) to run the application on your local development machine.
 
 ## Step 1: Create an Azure VM with a Managed Service Identity (MSI) 
-<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure-Samples%2Fwindowsvm-msi-arm-dotnet%2Fmaster%2Fazuredeploy.json" target="_blank">
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure-Samples%2Flinuxvm-msi-keyvault-arm-dotnet%2Fmaster%2Fazuredeploy.json" target="_blank">
     <img src="http://azuredeploy.net/deploybutton.png"/>
 </a>
 
 Use the "Deploy to Azure" button to deploy an ARM template to create the following resources:
 1. Azure Linux VM with MSI.
 2. Key Vault with a secret, and an access policy that grants the Azure VM access to **Get Secrets**.
-3. Role assignment that grants the Azure VM reader access to the subscription. 
+>Note: When filling out the template you will see a textbox labelled 'Key Vault Secret' in the settings section. Enter a secret value there. Then a Key Vault secret with the name 'secret' and value from what you entered will be created in the Key Vault.
 
 Review the resources created using the Azure portal. You should see the Azure VM and a Key Vault. View the access policies of the Key Vault to see that the Azure VM has access to it. 
 
@@ -36,7 +36,12 @@ Using the Azure Portal, go to the Key Vault's access policies, and grant yoursel
 4.	Click on "Select Principal", add your account 
 5.	Save the Access Policies
 
-## Step 3: Clone the repo 
+## Step 3: Grant the MSI "Reader" access to the subscription
+Using the Azure Portal, navigate to the subscriptions blade, and grant the MSI "Reader" access to the subscription. The code will use this access to list resource groups in the subscription. 
+
+Click the "Access control (IAM)" page of the subscription, and click "+ Add." Then specify the Role as "Reader", Assign access to a "Virtual Machine", and specify the corresponding Subscription and Resource Group where the VM resides. Under the search criteria area, you should see the resource show up. Hit "Save".
+
+## Step 4: Clone the repo 
 Clone the repo to your development machine. 
 
 The relevant Nuget packages are:
@@ -48,7 +53,7 @@ The relevant code is in Program.cs file. The AzureServiceTokenProvider class (wh
 1. Managed Service Identity (MSI) - for scenarios where the code is deployed to Azure, and the Azure resource supports MSI. 
 2. [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest) (for local development) - Azure CLI version 2.0.12 and above supports the **get-access-token** option. AzureServiceTokenProvider uses this option to get an access token for local development. 
 
-> For applications targeting .NET Framework, Active Directory Integrated Authentication is tried possible for local development. 
+> For applications targeting .NET Framework, Active Directory Integrated Authentication is also tried for local development. 
 
 ```csharp    
 private static async Task GetSecretFromKeyVault(AzureServiceTokenProvider azureServiceTokenProvider)
@@ -106,7 +111,7 @@ private static async Task GetResourceGroups(AzureServiceTokenProvider azureServi
 }
 ```
 
-## Step 4: Run the application on your local development machine
+## Step 5: Run the application on your local development machine
 Open a command prompt and navigate to the folder with the project file. Run **dotnet restore**. Then run **dotnet run**. 
 
 Since the code is running on your local development machine, AzureServiceTokenProvider will use the developer's security context to get a token to authenticate to Azure Services.
@@ -126,16 +131,16 @@ Since your developer account has access to the Key Vault and the subscription, y
 In the Azure Portal, browse to the Azure VM you created, and click on "Connect". 
 
 1. SSH into the Azure VM. 
-2. Install .NET Core 1.1
+2. Install [.NET Core 1.1](https://github.com/dotnet/core/blob/master/release-notes/download-archives/1.1.2-download.md)
 3. Clone the repo using 
-   git-clone 
+   **git clone https://github.com/Azure-Samples/linuxvm-msi-keyvault-arm-dotnet/**
 4. Navigate to the folder with the project file.
 5. Run **dotnet restore**. Then run **dotnet run**. 
 
 It will run the same code that was run on the local development machine, but will use Managed Service Identity, instead of your developer context. 
 
 ## Summary
-The .NET Core console application was successfully able to get a secret at runtime from Azure Key Vault and list resource groups using ARM using your developer account during development, and using MSI when deployed to Azure, without any code change between local development environment and Azure. 
+The .NET Core application was successfully able to authenticate to Azure Services using your developer account during development, and using MSI when deployed to Azure, without any code change between local development environment and Azure. 
 As a result, you did not have to explicitly handle a service principal credential to authenticate to Azure AD to get a token to call Azure Services. 
 You do not have to worry about renewing the service principal credential either, since MSI takes care of that.  
 
