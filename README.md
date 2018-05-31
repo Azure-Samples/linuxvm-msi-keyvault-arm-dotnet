@@ -9,6 +9,8 @@ With [Managed Service Identity (MSI)](https://docs.microsoft.com/en-us/azure/act
 
 >Here's another sample that shows how to fetch a secret from Azure Key Vault at run-time from an App Service with a Managed Service Identity (MSI) - [https://github.com/Azure-Samples/app-service-msi-keyvault-dotnet/](https://github.com/Azure-Samples/app-service-msi-keyvault-dotnet/)
 
+>Here's another sample that shows how to programatically deploy an ARM template from a .NET Console application running on an Azure VM with a Managed Service Identity (MSI) - [https://github.com/Azure-Samples/windowsvm-msi-arm-dotnet](https://github.com/Azure-Samples/windowsvm-msi-arm-dotnet)
+
 ## Prerequisites
 To run and deploy this sample, you need the following:
 1. Azure subscription to create an Azure VM with MSI. 
@@ -45,7 +47,7 @@ Click the "Access control (IAM)" page of the subscription, and click "+ Add." Th
 Clone the repo to your development machine. 
 
 The relevant Nuget packages are:
-1. Microsoft.Azure.Services.AppAuthentication (preview) - makes it easy to fetch access tokens for service to Azure service authentication scenarios. 
+1. Microsoft.Azure.Services.AppAuthentication - makes it easy to fetch access tokens for service to Azure service authentication scenarios. 
 2. Microsoft.Azure.Management.ResourceManager - contains methods for interacting with Azure Resource Manager. 
 3. Microsoft.Azure.KeyVault - contains methods for interacting with Key Vault. 
 
@@ -64,12 +66,12 @@ private static async Task GetSecretFromKeyVault(AzureServiceTokenProvider azureS
 
     Console.WriteLine("Please enter the key vault name");
 
-    var keyvaultName = Console.ReadLine();
+    var keyVaultName = Console.ReadLine();
 
     try
     {
         var secret = await keyVaultClient
-            .GetSecretAsync($"https://{keyvaultName}.vault.azure.net/secrets/secret")
+            .GetSecretAsync($"https://{keyVaultName}.vault.azure.net/secrets/secret")
             .ConfigureAwait(false);
 
         Console.WriteLine($"Secret: {secret.Value}");
@@ -79,7 +81,6 @@ private static async Task GetSecretFromKeyVault(AzureServiceTokenProvider azureS
     {
         Console.WriteLine($"Something went wrong: {exp.Message}");
     }
-    
 }
 
 private static async Task GetResourceGroups(AzureServiceTokenProvider azureServiceTokenProvider)
@@ -107,7 +108,6 @@ private static async Task GetResourceGroups(AzureServiceTokenProvider azureServi
     {
         Console.WriteLine($"Something went wrong: {exp.Message}");
     }
-    
 }
 ```
 
@@ -131,7 +131,7 @@ Since your developer account has access to the Key Vault and the subscription, y
 In the Azure Portal, browse to the Azure VM you created, and click on "Connect". 
 
 1. SSH into the Azure VM, and run below commands from the command line. 
-2. Install [.NET Core 2.0](https://www.microsoft.com/net/core#linuxubuntu)
+2. Install [.NET Core 2.0](https://www.microsoft.com/net/learn/get-started/linux/)
 3. Clone the repo using 
    **git clone https://github.com/Azure-Samples/linuxvm-msi-keyvault-arm-dotnet/**
 4. Navigate to the folder with the project file.
@@ -159,6 +159,10 @@ AzureServiceTokenProvider finds Azure CLI at its default install locations. If i
 1. Access denied (Forbidden)
 
 The principal used does not have access to the subscription or the Key Vault. 
+
+2. AggregateException/CloudException: Long running operation failed with status 'Failed'.
+
+There was an unspecified error during the deployment. You can view the specific error message by using Azure Portal. First, navigate to the Activity Log by searching for "activity log" in the “Search Resources dialog box”. Then, in the Activity Log you can search for the failed deployment by filtering to the subscription and resource group you specified in step #4. After this step, you should see the failed deployment that you can expand and view the specific deployment error below in the summary field. A common deployment issue is that the storage account name specified in step #4 is either already taken or is not a valid storage account name.
 
 ## Running the application using a service principal in local development environment
 
