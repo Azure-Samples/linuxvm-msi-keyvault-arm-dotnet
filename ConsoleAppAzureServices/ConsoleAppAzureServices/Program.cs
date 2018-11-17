@@ -33,12 +33,12 @@ namespace ConsoleAppAzureServices
 
             Console.WriteLine("Please enter the key vault name");
 
-            var keyvaultName = Console.ReadLine();
+            var keyVaultName = Console.ReadLine();
 
             try
             {
                 var secret = await keyVaultClient
-                    .GetSecretAsync($"https://{keyvaultName}.vault.azure.net/secrets/secret")
+                    .GetSecretAsync($"https://{keyVaultName}.vault.azure.net/secrets/secret")
                     .ConfigureAwait(false);
 
                 Console.WriteLine($"Secret: {secret.Value}");
@@ -48,7 +48,6 @@ namespace ConsoleAppAzureServices
             {
                 Console.WriteLine($"Something went wrong: {exp.Message}");
             }
-            
         }
 
         private static async Task GetResourceGroups(AzureServiceTokenProvider azureServiceTokenProvider)
@@ -76,7 +75,6 @@ namespace ConsoleAppAzureServices
             {
                 Console.WriteLine($"Something went wrong: {exp.Message}");
             }
-            
         }
     }
 }
