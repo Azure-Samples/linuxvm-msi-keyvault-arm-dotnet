@@ -8,7 +8,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Azure.KeyVault" Version="2.3.2" />
     <PackageReference Include="Microsoft.Azure.Management.ResourceManager" Version="1.6.0-preview" />
+<<<<<<< HEAD
+    <PackageReference Include="Microsoft.Azure.Services.AppAuthentication" Version="1.2.0-preview2" />
+=======
     <PackageReference Include="Microsoft.Azure.Services.AppAuthentication" Version="1.0.3" />
+>>>>>>> 04444822a4e0b2baa7e5eb038d274d0558a9ffec
   </ItemGroup>
 
 </Project>
