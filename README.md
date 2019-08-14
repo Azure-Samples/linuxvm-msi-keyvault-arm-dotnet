@@ -146,21 +146,11 @@ You do not have to worry about renewing the service principal credential either,
 
 ## Troubleshooting
 
-### Common issues during local development:
-
-1. Azure CLI is not installed, or you are not logged in, or you do not have the latest version. 
-Run **az account get-access-token** to see if Azure CLI shows a token for you. If it says no such program found, please install Azure CLI 2.0. If you have installed it, you may be prompted to login. 
-
-2. AzureServiceTokenProvider cannot find the path for Azure CLI.
-AzureServiceTokenProvider finds Azure CLI at its default install locations. If it cannot find Azure CLI, please set environment variable **AzureCLIPath** to the Azure CLI installation folder. AzureServiceTokenProvider will add the environment variable to the Path environment variable.
+Please see the [troubleshooting section](https://docs.microsoft.com/en-us/azure/key-vault/service-to-service-authentication#appauthentication-troubleshooting) of the AppAuthentication library documentation for troubleshooting of common issues.
 
 ### Common issues across environments:
 
-1. Access denied (Forbidden)
-
-The principal used does not have access to the subscription or the Key Vault. 
-
-2. AggregateException/CloudException: Long running operation failed with status 'Failed'.
+1. AggregateException/CloudException: Long running operation failed with status 'Failed'.
 
 There was an unspecified error during the deployment. You can view the specific error message by using Azure Portal. First, navigate to the Activity Log by searching for "activity log" in the “Search Resources dialog box”. Then, in the Activity Log you can search for the failed deployment by filtering to the subscription and resource group you specified in step #4. After this step, you should see the failed deployment that you can expand and view the specific deployment error below in the summary field. A common deployment issue is that the storage account name specified in step #4 is either already taken or is not a valid storage account name.
 
