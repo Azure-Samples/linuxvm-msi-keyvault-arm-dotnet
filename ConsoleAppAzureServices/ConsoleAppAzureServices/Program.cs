@@ -1,9 +1,10 @@
-﻿using System;
+﻿using Azure;
+using Azure.Identity;
+using Azure.ResourceManager.Resources;
+using Azure.ResourceManager.Resources.Models;
+using Azure.Security.KeyVault.Secrets;
+using System;
 using System.Threading.Tasks;
-using Microsoft.Azure.KeyVault;
-using Microsoft.Azure.Management.ResourceManager;
-using Microsoft.Azure.Services.AppAuthentication;
-using Microsoft.Rest;
 
 namespace ConsoleAppAzureServices
 {
@@ -11,37 +12,38 @@ namespace ConsoleAppAzureServices
     {
         static void Main()
         {
-            AzureServiceTokenProvider azureServiceTokenProvider = new AzureServiceTokenProvider();
+            InteractiveBrowserCredential credential = new InteractiveBrowserCredential();
 
-            GetSecretFromKeyVault(azureServiceTokenProvider).Wait();
+            AuthenticationRecord authRecord = credential.Authenticate();
 
-            GetResourceGroups(azureServiceTokenProvider).Wait();
+            GetSecretFromKeyVault(credential).Wait();
 
-            if (azureServiceTokenProvider.PrincipalUsed != null)
+            GetResourceGroups(credential).Wait();
+
+            if (credential != null)
             {
-                Console.WriteLine($"{Environment.NewLine}Principal used: {azureServiceTokenProvider.PrincipalUsed}");
+                Console.WriteLine($"{Environment.NewLine}Principal used:{authRecord.Authority} TenantId:{authRecord.TenantId} UserPrincipalName:{authRecord.Username}");
             }
 
             Console.ReadLine();
         }
 
-        private static async Task GetSecretFromKeyVault(AzureServiceTokenProvider azureServiceTokenProvider)
+        private static async Task GetSecretFromKeyVault(InteractiveBrowserCredential credential)
         {
-            KeyVaultClient keyVaultClient =
-                new KeyVaultClient(
-                    new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
+            SecretClient secretClient =
+                new SecretClient(new Uri("https://{keyVaultName}.vault.azure.net/"), credential);
 
             Console.WriteLine("Please enter the key vault name");
 
-            var keyVaultName = Console.ReadLine();
+            Console.ReadLine();
 
             try
             {
-                var secret = await keyVaultClient
-                    .GetSecretAsync($"https://{keyVaultName}.vault.azure.net/secrets/secret")
+                var secret = await secretClient
+                    .GetSecretAsync("Secretname")
                     .ConfigureAwait(false);
 
-                Console.WriteLine($"Secret: {secret.Value}");
+                Console.WriteLine($"Secret: {secret.Value.Value}");
 
             }
             catch (Exception exp)
@@ -50,7 +52,7 @@ namespace ConsoleAppAzureServices
             }
         }
 
-        private static async Task GetResourceGroups(AzureServiceTokenProvider azureServiceTokenProvider)
+        private static async Task GetResourceGroups(InteractiveBrowserCredential credential)
         {
             Console.WriteLine($"{Environment.NewLine}{Environment.NewLine}Please enter the subscription Id");
 
@@ -58,14 +60,13 @@ namespace ConsoleAppAzureServices
 
             try
             {
-                var serviceCreds = new TokenCredentials(await azureServiceTokenProvider.GetAccessTokenAsync("https://management.azure.com/").ConfigureAwait(false));
+                var resourceClient = new ResourcesManagementClient(subscriptionId, credential);
 
-                var resourceManagementClient =
-                    new ResourceManagementClient(serviceCreds) {SubscriptionId = subscriptionId};
+                var resourceGroupsClient = resourceClient.ResourceGroups;
+                
+                AsyncPageable<ResourceGroup> response = resourceGroupsClient.ListAsync();
 
-                var resourceGroups = await resourceManagementClient.ResourceGroups.ListAsync();
-
-                foreach (var resourceGroup in resourceGroups)
+                await foreach (var resourceGroup in response)
                 {
                     Console.WriteLine($"Resource group {resourceGroup.Name}");
                 }
