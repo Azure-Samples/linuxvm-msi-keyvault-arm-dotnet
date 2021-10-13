@@ -1,34 +1,28 @@
-﻿using Azure;
+﻿using System;
+using System.Threading.Tasks;
+using Azure;
 using Azure.Identity;
 using Azure.ResourceManager.Resources;
 using Azure.ResourceManager.Resources.Models;
 using Azure.Security.KeyVault.Secrets;
-using System;
-using System.Threading.Tasks;
 
 namespace ConsoleAppAzureServices
 {
     class Program
     {
-        static void Main()
+        static async Task Main()
         {
-            InteractiveBrowserCredential credential = new InteractiveBrowserCredential();
+            DefaultAzureCredential credential = new DefaultAzureCredential();
 
-            AuthenticationRecord authRecord = credential.Authenticate();
+            await GetSecretFromKeyVault(credential);
 
-            GetSecretFromKeyVault(credential).Wait();
+            await GetResourceGroups(credential);
 
-            GetResourceGroups(credential).Wait();
-
-            if (credential != null)
-            {
-                Console.WriteLine($"{Environment.NewLine}Principal used:{authRecord.Authority} TenantId:{authRecord.TenantId} UserPrincipalName:{authRecord.Username}");
-            }
-
+            Console.WriteLine($"{Environment.NewLine}Principal used:{credential}");
             Console.ReadLine();
         }
 
-        private static async Task GetSecretFromKeyVault(InteractiveBrowserCredential credential)
+        private static async Task GetSecretFromKeyVault(DefaultAzureCredential credential)
         {
             SecretClient secretClient =
                 new SecretClient(new Uri("https://{keyVaultName}.vault.azure.net/"), credential);
@@ -52,7 +46,7 @@ namespace ConsoleAppAzureServices
             }
         }
 
-        private static async Task GetResourceGroups(InteractiveBrowserCredential credential)
+        private static async Task GetResourceGroups(DefaultAzureCredential credential)
         {
             Console.WriteLine($"{Environment.NewLine}{Environment.NewLine}Please enter the subscription Id");
 
@@ -63,7 +57,7 @@ namespace ConsoleAppAzureServices
                 var resourceClient = new ResourcesManagementClient(subscriptionId, credential);
 
                 var resourceGroupsClient = resourceClient.ResourceGroups;
-                
+
                 AsyncPageable<ResourceGroup> response = resourceGroupsClient.ListAsync();
 
                 await foreach (var resourceGroup in response)
@@ -72,7 +66,7 @@ namespace ConsoleAppAzureServices
                 }
 
             }
-            catch (Exception exp)
+            catch (RequestFailedException exp)
             {
                 Console.WriteLine($"Something went wrong: {exp.Message}");
             }
