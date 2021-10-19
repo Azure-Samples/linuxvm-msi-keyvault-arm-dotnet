@@ -27,7 +27,7 @@ namespace ConsoleAppAzureServices
             Console.WriteLine("Please enter the Key Vault name");
             string keyVaultName = Console.ReadLine();
 
-            SecretClient secretClient = new SecretClient(new Uri($"https://{keyVaultName}.vault.azure.net/"), credential);
+            SecretClient secretClient = new SecretClient(new Uri($"https://{keyVaultName}.vault.azure.net"), credential);
 
             try
             {
