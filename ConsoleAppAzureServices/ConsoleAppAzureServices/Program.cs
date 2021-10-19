@@ -24,7 +24,7 @@ namespace ConsoleAppAzureServices
 
         private static async Task GetSecretFromKeyVault(DefaultAzureCredential credential)
         {
-            Console.WriteLine("Please enter the key vault name");
+            Console.WriteLine("Please enter the Key Vault name");
             string keyVaultName = Console.ReadLine();
 
             SecretClient secretClient = new SecretClient(new Uri($"https://{keyVaultName}.vault.azure.net/"), credential);
