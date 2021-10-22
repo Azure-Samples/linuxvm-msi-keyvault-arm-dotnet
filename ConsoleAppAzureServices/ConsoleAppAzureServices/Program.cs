@@ -1,56 +1,50 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Microsoft.Azure.KeyVault;
-using Microsoft.Azure.Management.ResourceManager;
-using Microsoft.Azure.Services.AppAuthentication;
-using Microsoft.Rest;
+using Azure;
+using Azure.Identity;
+using Azure.ResourceManager.Resources;
+using Azure.ResourceManager.Resources.Models;
+using Azure.Security.KeyVault.Secrets;
 
 namespace ConsoleAppAzureServices
 {
     class Program
     {
-        static void Main()
+        static async Task Main()
         {
-            AzureServiceTokenProvider azureServiceTokenProvider = new AzureServiceTokenProvider();
+            DefaultAzureCredential credential = new DefaultAzureCredential();
 
-            GetSecretFromKeyVault(azureServiceTokenProvider).Wait();
+            await GetSecretFromKeyVault(credential);
 
-            GetResourceGroups(azureServiceTokenProvider).Wait();
+            await GetResourceGroups(credential);
 
-            if (azureServiceTokenProvider.PrincipalUsed != null)
-            {
-                Console.WriteLine($"{Environment.NewLine}Principal used: {azureServiceTokenProvider.PrincipalUsed}");
-            }
-
+            Console.WriteLine($"{Environment.NewLine}Principal used:{credential}");
             Console.ReadLine();
         }
 
-        private static async Task GetSecretFromKeyVault(AzureServiceTokenProvider azureServiceTokenProvider)
+        private static async Task GetSecretFromKeyVault(DefaultAzureCredential credential)
         {
-            KeyVaultClient keyVaultClient =
-                new KeyVaultClient(
-                    new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
+            Console.WriteLine("Please enter the Key Vault name");
+            string keyVaultName = Console.ReadLine();
 
-            Console.WriteLine("Please enter the key vault name");
-
-            var keyVaultName = Console.ReadLine();
+            SecretClient secretClient = new SecretClient(new Uri($"https://{keyVaultName}.vault.azure.net"), credential);
 
             try
             {
-                var secret = await keyVaultClient
-                    .GetSecretAsync($"https://{keyVaultName}.vault.azure.net/secrets/secret")
+                var secret = await secretClient
+                    .GetSecretAsync("Secretname")
                     .ConfigureAwait(false);
 
-                Console.WriteLine($"Secret: {secret.Value}");
+                Console.WriteLine($"Secret: {secret.Value.Value}");
 
             }
-            catch (Exception exp)
+            catch (RequestFailedException exp)
             {
                 Console.WriteLine($"Something went wrong: {exp.Message}");
             }
         }
 
-        private static async Task GetResourceGroups(AzureServiceTokenProvider azureServiceTokenProvider)
+        private static async Task GetResourceGroups(DefaultAzureCredential credential)
         {
             Console.WriteLine($"{Environment.NewLine}{Environment.NewLine}Please enter the subscription Id");
 
@@ -58,20 +52,19 @@ namespace ConsoleAppAzureServices
 
             try
             {
-                var serviceCreds = new TokenCredentials(await azureServiceTokenProvider.GetAccessTokenAsync("https://management.azure.com/").ConfigureAwait(false));
+                var resourceClient = new ResourcesManagementClient(subscriptionId, credential);
 
-                var resourceManagementClient =
-                    new ResourceManagementClient(serviceCreds) {SubscriptionId = subscriptionId};
+                var resourceGroupsClient = resourceClient.ResourceGroups;
 
-                var resourceGroups = await resourceManagementClient.ResourceGroups.ListAsync();
+                AsyncPageable<ResourceGroup> response = resourceGroupsClient.ListAsync();
 
-                foreach (var resourceGroup in resourceGroups)
+                await foreach (var resourceGroup in response)
                 {
                     Console.WriteLine($"Resource group {resourceGroup.Name}");
                 }
 
             }
-            catch (Exception exp)
+            catch (RequestFailedException exp)
             {
                 Console.WriteLine($"Something went wrong: {exp.Message}");
             }

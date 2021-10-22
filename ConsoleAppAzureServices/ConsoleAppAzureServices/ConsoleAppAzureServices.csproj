@@ -2,17 +2,14 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <LangVersion>8.0</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Azure.KeyVault" Version="2.3.2" />
-    <PackageReference Include="Microsoft.Azure.Management.ResourceManager" Version="1.6.0-preview" />
-<<<<<<< HEAD
-    <PackageReference Include="Microsoft.Azure.Services.AppAuthentication" Version="1.2.0-preview2" />
-=======
-    <PackageReference Include="Microsoft.Azure.Services.AppAuthentication" Version="1.0.3" />
->>>>>>> 04444822a4e0b2baa7e5eb038d274d0558a9ffec
+    <PackageReference Include="Azure.Identity" Version="1.4.1" />
+    <PackageReference Include="Azure.ResourceManager.Resources" Version="1.0.0-preview.2" />
+    <PackageReference Include="Azure.Security.KeyVault.Secrets" Version="4.2.0" />
   </ItemGroup>
 
 </Project>
